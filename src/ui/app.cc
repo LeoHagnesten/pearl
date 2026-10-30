@@ -92,6 +92,28 @@ namespace ui {
 
 	}
 
+	void app::rebuild_gpu ( render::gpu* device ) {
+
+		render::cover_spec specs [ 16 ];
+
+		gpu->free_surface ( mini_layer );
+		gpu = device;
+		library::covers ( specs );
+		gpu->make_covers ( specs, art_base, art_base + art_room, library::art_size );
+		gpu->make_thumbs ( thumb_room, thumb_edge );
+
+		for ( art_slot& slot : art_slots )
+			slot = art_slot ( );
+
+		for ( art_slot& slot : thumb_slots )
+			slot = art_slot ( );
+
+		art_waiting.clear ( );
+		big_wanted.clear ( );
+		pending = base::max ( pending, 3 );
+
+	}
+
 	void app::adopt_library ( ) {
 
 		bool remote_now = remote_mode ( );

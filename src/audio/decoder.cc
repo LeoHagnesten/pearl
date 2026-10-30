@@ -29,6 +29,34 @@ namespace audio {
 	static HANDLE thread = nullptr;
 	static HANDLE wake = nullptr;
 
+	typedef HRESULT ( __stdcall* startup_call ) ( ULONG, DWORD );
+	typedef HRESULT ( __stdcall* media_type_call ) ( IMFMediaType** );
+	typedef HRESULT ( __stdcall* reader_call ) ( LPCWSTR, IMFAttributes*, IMFSourceReader** );
+
+	static startup_call media_startup = nullptr;
+	static media_type_call media_type = nullptr;
+	static reader_call media_reader = nullptr;
+
+	template < typename call >
+	static call find_call ( HMODULE module, const char* name ) {
+
+		return module ? reinterpret_cast < call > ( reinterpret_cast < void* > ( GetProcAddress ( module, name ) ) ) : nullptr;
+
+	}
+
+	static bool load_media ( ) {
+
+		HMODULE platform = LoadLibraryExW ( L"mfplat.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32 );
+		HMODULE readwrite = LoadLibraryExW ( L"mfreadwrite.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32 );
+
+		media_startup = find_call < startup_call > ( platform, "MFStartup" );
+		media_type = find_call < media_type_call > ( platform, "MFCreateMediaType" );
+		media_reader = find_call < reader_call > ( readwrite, "MFCreateSourceReaderFromURL" );
+
+		return media_startup && media_type && media_reader && SUCCEEDED ( media_startup ( MF_VERSION, MFSTARTUP_LITE ) );
+
+	}
+
 	struct converter {
 
 		int32_t channels = 2;
@@ -161,7 +189,7 @@ namespace audio {
 
 		IMFSourceReader* reader = nullptr;
 
-		if ( FAILED ( MFCreateSourceReaderFromURL ( path, nullptr, &reader ) ) )
+		if ( !media_reader || !media_type || FAILED ( media_reader ( path, nullptr, &reader ) ) )
 			return nullptr;
 
 		reader->SetStreamSelection ( static_cast < DWORD > ( MF_SOURCE_READER_ALL_STREAMS ), FALSE );
@@ -170,7 +198,7 @@ namespace audio {
 		IMFMediaType* type = nullptr;
 		bool converted = false;
 
-		if ( SUCCEEDED ( MFCreateMediaType ( &type ) ) ) {
+		if ( SUCCEEDED ( media_type ( &type ) ) ) {
 
 			type->SetGUID ( MF_MT_MAJOR_TYPE, MFMediaType_Audio );
 			type->SetGUID ( MF_MT_SUBTYPE, MFAudioFormat_Float );
@@ -185,7 +213,7 @@ namespace audio {
 
 		}
 
-		if ( !converted && SUCCEEDED ( MFCreateMediaType ( &type ) ) ) {
+		if ( !converted && SUCCEEDED ( media_type ( &type ) ) ) {
 
 			type->SetGUID ( MF_MT_MAJOR_TYPE, MFMediaType_Audio );
 			type->SetGUID ( MF_MT_SUBTYPE, MFAudioFormat_Float );
@@ -244,7 +272,7 @@ namespace audio {
 	static DWORD __stdcall decode_thread ( void* ) {
 
 		CoInitializeEx ( nullptr, COINIT_MULTITHREADED );
-		MFStartup ( MF_VERSION, MFSTARTUP_LITE );
+		load_media ( );
 
 		IMFSourceReader* reader = nullptr;
 		converter state;

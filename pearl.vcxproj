@@ -9,6 +9,14 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -34,6 +42,7 @@
   <ItemGroup>
     <ClCompile Include="src\runtime\startup.cc" />
     <ClCompile Include="src\runtime\memory.cc" />
+    <ClCompile Include="src\runtime\rounding.cc" />
     <ClCompile Include="src\base\base.cc" />
     <ClCompile Include="src\base\math.cc" />
     <ClCompile Include="src\base\files.cc" />
@@ -86,6 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="assets\pearl.rc" />
+    <None Include="assets\pearl.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

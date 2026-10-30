@@ -10,6 +10,8 @@ extern "C" {
 
 }
 
+#if defined ( __x86_64__ )
+
 extern "C" void* memset ( void* target, int value, runtime_size count ) {
 
 	void* result = target;
@@ -29,6 +31,42 @@ extern "C" void* memcpy ( void* target, const void* source, runtime_size count )
 	return result;
 
 }
+
+#else
+
+extern "C" void* memset ( void* target, int value, runtime_size count ) {
+
+	unsigned char* to = static_cast < unsigned char* > ( target );
+	unsigned long long pattern = static_cast < unsigned char > ( value ) * 0x0101010101010101ull;
+	runtime_size i = 0;
+
+	for ( ; i + 8 <= count; i += 8 )
+		__builtin_memcpy_inline ( to + i, &pattern, 8 );
+
+	for ( ; i < count; i++ )
+		to [ i ] = static_cast < unsigned char > ( value );
+
+	return target;
+
+}
+
+extern "C" void* memcpy ( void* target, const void* source, runtime_size count ) {
+
+	unsigned char* to = static_cast < unsigned char* > ( target );
+	const unsigned char* from = static_cast < const unsigned char* > ( source );
+	runtime_size i = 0;
+
+	for ( ; i + 8 <= count; i += 8 )
+		__builtin_memcpy_inline ( to + i, from + i, 8 );
+
+	for ( ; i < count; i++ )
+		to [ i ] = from [ i ];
+
+	return target;
+
+}
+
+#endif
 
 extern "C" void* memmove ( void* target, const void* source, runtime_size count ) {
 

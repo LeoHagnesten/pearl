@@ -68,12 +68,93 @@ static constexpr float mini_pill_w = 484.0f;
 static constexpr float mini_pill_h = 60.0f;
 static constexpr float mini_margin = 24.0f;
 static constexpr UINT_PTR mini_timer = 8;
+static bool device_lost = false;
+static double device_retry = 0.0;
+static bool software_only = false;
+
+typedef UINT ( __stdcall* window_dpi_call ) ( HWND );
+typedef UINT ( __stdcall* system_dpi_call ) ( );
+typedef int ( __stdcall* metric_dpi_call ) ( int, UINT );
+typedef BOOL ( __stdcall* context_call ) ( DPI_AWARENESS_CONTEXT );
+typedef HRESULT ( __stdcall* awareness_call ) ( int );
+typedef HRESULT ( __stdcall* monitor_dpi_call ) ( HMONITOR, int, UINT*, UINT* );
+
+static window_dpi_call dpi_of_window = nullptr;
+static system_dpi_call dpi_of_system = nullptr;
+static metric_dpi_call metric_of_dpi = nullptr;
+static monitor_dpi_call dpi_of_monitor = nullptr;
+
+template < typename call >
+static call find_call ( HMODULE module, const char* name ) {
+
+	return module ? reinterpret_cast < call > ( reinterpret_cast < void* > ( GetProcAddress ( module, name ) ) ) : nullptr;
+
+}
+
+static void load_dpi ( ) {
+
+	HMODULE user = GetModuleHandleW ( L"user32.dll" );
+	HMODULE shell = LoadLibraryExW ( L"shcore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32 );
+	context_call context = find_call < context_call > ( user, "SetProcessDpiAwarenessContext" );
+	awareness_call awareness = find_call < awareness_call > ( shell, "SetProcessDpiAwareness" );
+
+	dpi_of_window = find_call < window_dpi_call > ( user, "GetDpiForWindow" );
+	dpi_of_system = find_call < system_dpi_call > ( user, "GetDpiForSystem" );
+	metric_of_dpi = find_call < metric_dpi_call > ( user, "GetSystemMetricsForDpi" );
+	dpi_of_monitor = find_call < monitor_dpi_call > ( shell, "GetDpiForMonitor" );
+
+	if ( context && context ( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ) )
+		return;
+
+	if ( awareness && SUCCEEDED ( awareness ( 2 ) ) )
+		return;
+
+	SetProcessDPIAware ( );
+
+}
+
+static UINT system_dpi ( ) {
+
+	if ( dpi_of_system )
+		return dpi_of_system ( );
+
+	HDC screen = GetDC ( nullptr );
+	int32_t dpi = screen ? GetDeviceCaps ( screen, LOGPIXELSX ) : 96;
+
+	if ( screen )
+		ReleaseDC ( nullptr, screen );
+
+	return dpi > 0 ? static_cast < UINT > ( dpi ) : 96;
+
+}
+
+static UINT window_dpi ( HWND window ) {
+
+	UINT dpi = dpi_of_window ? dpi_of_window ( window ) : 0;
+	UINT x = 0;
+	UINT y = 0;
+
+	if ( !dpi && dpi_of_monitor && SUCCEEDED ( dpi_of_monitor ( MonitorFromWindow ( window, MONITOR_DEFAULTTONEAREST ), 0, &x, &y ) ) )
+		dpi = x;
+
+	return dpi ? dpi : system_dpi ( );
+
+}
+
+static int32_t scaled_metric ( int32_t index, UINT dpi ) {
+
+	if ( metric_of_dpi )
+		return metric_of_dpi ( index, dpi );
+
+	return MulDiv ( GetSystemMetrics ( index ), static_cast < int32_t > ( dpi ), static_cast < int32_t > ( system_dpi ( ) ) );
+
+}
 
 static int32_t frame_thickness ( HWND window ) {
 
-	UINT dpi = GetDpiForWindow ( window );
+	UINT dpi = window_dpi ( window );
 
-	return GetSystemMetricsForDpi ( SM_CYFRAME, dpi ) + GetSystemMetricsForDpi ( SM_CXPADDEDBORDER, dpi );
+	return scaled_metric ( SM_CYFRAME, dpi ) + scaled_metric ( SM_CXPADDEDBORDER, dpi );
 
 }
 
@@ -106,7 +187,7 @@ static void sync_size ( ) {
 		return;
 
 	device->resize ( main_output, width, height );
-	program->resize ( width, height, static_cast < float > ( GetDpiForWindow ( main_window ) ) / 96.0f );
+	program->resize ( width, height, static_cast < float > ( window_dpi ( main_window ) ) / 96.0f );
 	program->set_maximized ( IsZoomed ( main_window ) != FALSE );
 
 }
@@ -307,6 +388,9 @@ static void trace_frame ( double begin, double work, double present_time ) {
 
 static void render_main ( ) {
 
+	if ( device_lost )
+		return;
+
 #ifdef PEARL_DEBUG
 
 	double begin = base::seconds ( );
@@ -352,7 +436,7 @@ static void begin_show ( );
 
 static float mini_scale ( ) {
 
-	return static_cast < float > ( GetDpiForWindow ( mini_window ) ) / 96.0f;
+	return static_cast < float > ( window_dpi ( mini_window ) ) / 96.0f;
 
 }
 
@@ -435,7 +519,7 @@ static void shape_mini ( ) {
 
 static void render_mini ( ) {
 
-	if ( !mini_on )
+	if ( !mini_on || device_lost )
 		return;
 
 	RECT client = { };
@@ -468,6 +552,46 @@ static void fit_mini ( ) {
 
 	if ( mini_surface.width < width || mini_surface.height < height )
 		device->make_surface ( mini_surface, width, height, true );
+
+}
+
+static void recover_device ( ) {
+
+	RECT client = { };
+	render::gpu* fresh = new render::gpu ( );
+
+	device_retry = base::seconds ( ) + 1.0;
+	device->release ( main_output );
+	device->release ( overlay_output );
+	device->release ( mini_output );
+	device->free_surface ( mini_surface );
+	device->free_surface ( overlay_surface );
+	GetClientRect ( main_window, &client );
+
+	if ( !fresh->setup ( software_only ) || !fresh->attach ( main_output, main_window, client.right, client.bottom ) || !fresh->attach ( overlay_output, overlay_window, 64, 64 ) || !fresh->attach ( mini_output, mini_window, 64, 64 ) ) {
+
+		fresh->release ( main_output );
+		fresh->release ( overlay_output );
+		fresh->release ( mini_output );
+		fresh->shutdown ( );
+		delete fresh;
+
+		return;
+
+	}
+
+	program->rebuild_gpu ( fresh );
+	device->shutdown ( );
+	delete device;
+	device = fresh;
+	device_lost = false;
+	sync_size ( );
+
+	if ( mini_on )
+		fit_mini ( );
+
+	if ( window_phase == phase::SHOWN )
+		render_main ( );
 
 }
 
@@ -800,7 +924,7 @@ static void place_overlay ( ) {
 
 	ClientToScreen ( main_window, &origin );
 	GetClientRect ( main_window, &client );
-	overlay_margin = static_cast < int32_t > ( 72.0f * static_cast < float > ( GetDpiForWindow ( main_window ) ) / 96.0f );
+	overlay_margin = static_cast < int32_t > ( 72.0f * static_cast < float > ( window_dpi ( main_window ) ) / 96.0f );
 
 	int32_t width = client.right + overlay_margin * 2;
 	int32_t height = client.bottom + overlay_margin * 2;
@@ -814,6 +938,9 @@ static void place_overlay ( ) {
 }
 
 static void draw_overlay ( float scale, float alpha ) {
+
+	if ( device_lost )
+		return;
 
 	overlay_canvas->begin ( device, 1.0f, math::vec2 ( 0.0f, 0.0f ), 0.0f );
 	program->draw_snapshot ( *overlay_canvas, static_cast < float > ( overlay_margin ), scale, alpha, IsZoomed ( main_window ) != FALSE );
@@ -1250,10 +1377,19 @@ static LRESULT __stdcall procedure ( HWND window, UINT message, WPARAM wide, LPA
 		case WM_GETMINMAXINFO: {
 
 			MINMAXINFO* info = reinterpret_cast < MINMAXINFO* > ( extra );
-			float scale = static_cast < float > ( GetDpiForWindow ( window ) ) / 96.0f;
+			float scale = static_cast < float > ( window_dpi ( window ) ) / 96.0f;
+			MONITORINFO monitor = { };
 
+			monitor.cbSize = sizeof ( monitor );
 			info->ptMinTrackSize.x = static_cast < LONG > ( 940.0f * scale );
 			info->ptMinTrackSize.y = static_cast < LONG > ( 620.0f * scale );
+
+			if ( GetMonitorInfoW ( MonitorFromWindow ( window, MONITOR_DEFAULTTONEAREST ), &monitor ) ) {
+
+				info->ptMinTrackSize.x = base::min ( info->ptMinTrackSize.x, monitor.rcWork.right - monitor.rcWork.left );
+				info->ptMinTrackSize.y = base::min ( info->ptMinTrackSize.y, monitor.rcWork.bottom - monitor.rcWork.top );
+
+			}
 
 			return 0;
 
@@ -1359,7 +1495,7 @@ static LRESULT __stdcall procedure ( HWND window, UINT message, WPARAM wide, LPA
 
 int program_main ( ) {
 
-	SetProcessDpiAwarenessContext ( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
+	load_dpi ( );
 	CoInitializeEx ( nullptr, COINIT_APARTMENTTHREADED );
 
 #ifdef PEARL_DEBUG
@@ -1391,9 +1527,18 @@ int program_main ( ) {
 
 	}
 
+	int32_t switch_count = 0;
+	wchar_t** switches = CommandLineToArgvW ( GetCommandLineW ( ), &switch_count );
+
+	for ( int32_t i = 1; switches && i < switch_count; i++ )
+		software_only = software_only || base::same_text ( switches [ i ], L"--software" );
+
+	if ( switches )
+		LocalFree ( switches );
+
 	device = new render::gpu ( );
 
-	if ( !device->setup ( ) ) {
+	if ( !device->setup ( software_only ) ) {
 
 		MessageBoxW ( nullptr, L"Pearl could not start its renderer.", L"Pearl", MB_ICONERROR );
 
@@ -1432,12 +1577,12 @@ int program_main ( ) {
 	mini_type.lpszClassName = L"pearl_mini";
 	RegisterClassExW ( &mini_type );
 
-	float scale = static_cast < float > ( GetDpiForSystem ( ) ) / 96.0f;
+	float scale = static_cast < float > ( system_dpi ( ) ) / 96.0f;
 	RECT work = { };
 
 	SystemParametersInfoW ( SPI_GETWORKAREA, 0, &work, 0 );
 
-	int32_t frame = GetSystemMetricsForDpi ( SM_CXFRAME, GetDpiForSystem ( ) ) + GetSystemMetricsForDpi ( SM_CXPADDEDBORDER, GetDpiForSystem ( ) );
+	int32_t frame = scaled_metric ( SM_CXFRAME, system_dpi ( ) ) + scaled_metric ( SM_CXPADDEDBORDER, system_dpi ( ) );
 	int32_t client_w = base::min ( static_cast < int32_t > ( 1240.0f * scale ), static_cast < int32_t > ( work.right - work.left ) - 60 );
 	int32_t client_h = base::min ( static_cast < int32_t > ( 800.0f * scale ), static_cast < int32_t > ( work.bottom - work.top ) - 60 );
 	int32_t left = work.left + ( work.right - work.left - client_w ) / 2 - frame;
@@ -1574,6 +1719,12 @@ int program_main ( ) {
 
 	while ( running ) {
 
+		if ( !device_lost && !device->healthy ( ) )
+			device_lost = true;
+
+		if ( device_lost && base::seconds ( ) >= device_retry )
+			recover_device ( );
+
 		bool overlay_active = window_phase == phase::HIDING || window_phase == phase::SHOWING;
 		bool render = window_phase == phase::SHOWN && program->busy ( );
 		bool drift = window_phase == phase::SHOWN && !render && !IsIconic ( main_window );
@@ -1622,7 +1773,7 @@ int program_main ( ) {
 
 			}
 
-			MsgWaitForMultipleObjectsEx ( 0, nullptr, mini_on ? 30 : ( window_phase == phase::HIDDEN ? 250 : INFINITE ), QS_ALLINPUT, MWMO_INPUTAVAILABLE );
+			MsgWaitForMultipleObjectsEx ( 0, nullptr, device_lost ? 250 : ( mini_on ? 30 : ( window_phase == phase::HIDDEN ? 250 : INFINITE ) ), QS_ALLINPUT, MWMO_INPUTAVAILABLE );
 
 		}
 

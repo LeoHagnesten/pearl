@@ -4,6 +4,7 @@
   <PropertyGroup>
     <pearl_root>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</pearl_root>
     <pearl_config>$(Configuration.ToLowerInvariant())</pearl_config>
+    <pearl_config Condition="'$(Platform)'=='ARM64'">$(pearl_config)-arm64</pearl_config>
     <OutDir>$(pearl_root)build\$(pearl_config)\</OutDir>
     <IntDir>$(pearl_root)build\$(pearl_config)\intermediate\</IntDir>
     <LinkIncremental>false</LinkIncremental>
@@ -32,15 +33,16 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <FloatingPointModel>Fast</FloatingPointModel>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
-      <AdditionalOptions>/Zc:threadSafeInit- /clang:-ffreestanding /clang:-fno-math-errno /clang:-mno-stack-arg-probe /clang:-mavx2 /clang:-mfma /clang:-Wno-unused-parameter /clang:-Wno-missing-braces %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:threadSafeInit- /clang:-ffreestanding /clang:-fno-math-errno /clang:-mno-stack-arg-probe /clang:-Wno-unused-parameter /clang:-Wno-missing-braces %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir);$(pearl_root)assets;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;shell32.lib;ole32.lib;advapi32.lib;dwmapi.lib;d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;dcomp.lib;windowscodecs.lib;uuid.lib;avrt.lib;mfplat.lib;mfreadwrite.lib;mfuuid.lib;propsys.lib;winhttp.lib;ws2_32.lib;crypt32.lib;bcrypt.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <TargetMachine>MachineX64</TargetMachine>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;shell32.lib;ole32.lib;advapi32.lib;dwmapi.lib;d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;dcomp.lib;windowscodecs.lib;uuid.lib;avrt.lib;mfuuid.lib;propsys.lib;winhttp.lib;ws2_32.lib;crypt32.lib;bcrypt.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TargetMachine Condition="'$(Platform)'=='x64'">MachineX64</TargetMachine>
+      <TargetMachine Condition="'$(Platform)'=='ARM64'">MachineARM64</TargetMachine>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>

@@ -5,7 +5,7 @@
 <h1 align="center">Pearl</h1>
 
 <p align="center">
-  A Spotify player for Windows, written from scratch in C++ with its own Direct3D renderer.<br>
+  A Spotify player for Windows 10 and 11, written from scratch in C++ with its own Direct3D renderer.<br>
   One executable under 1&nbsp;MB. No runtime, no installer.
 </p>
 
@@ -43,7 +43,7 @@ Pearl controls Spotify through Spotify Connect, so the audio still comes from th
 - **Search** across Spotify for songs, albums and artists. Album pages and artist pages come with top tracks, discography and a short bio from Wikipedia. Paste any Spotify link with <kbd>Ctrl</kbd>+<kbd>V</kbd> to open it.
 - **Liked Songs and playlists.** Heart anything, drag a song onto a playlist in the sidebar (or onto **+** to start a new one), or right-click for Play next, Add to playlist and Go to album. These are Pearl's own and never modify your Spotify library.
 - **Mini player.** Press <kbd>Insert</kbd> from anywhere to fold Pearl into a floating pill. Throw it toward an edge and it snaps to the nearest of eight spots. Hover it for a seek bar and a button that brings the full window back.
-- **Behaves like a Windows app.** Per-monitor DPI, rounded corners and the acrylic backdrop on Windows 11, media keys, a single instance, and it remembers its window, volume and where you left off.
+- **Behaves like a Windows app.** Per-monitor DPI, rounded corners and the acrylic backdrop on Windows 11, media keys, a single instance, and it remembers its window, volume and where you left off. If the graphics driver resets or updates while Pearl is open, it rebuilds its renderer and keeps going.
 
 <table>
   <tr>
@@ -68,16 +68,25 @@ Pearl controls Spotify through Spotify Connect, so the audio still comes from th
 
 ### Requirements
 
-- Windows 10 or 11, 64-bit. The acrylic backdrop needs Windows 11 22H2 or later; older builds get a solid background.
-- A CPU with AVX2 (Intel Haswell, AMD Ryzen or newer).
-- A GPU with Direct3D 11.
-- Spotify Premium. Spotify only allows playback control through its Web API for Premium accounts.
+Pearl runs on pretty much any PC with Windows 10 or 11.
+
+- **Windows 10 or 11, any version.** Everything from the first Windows 10 release (1507) to the latest Windows 11, including Home, Pro, Education, Enterprise, LTSC and the N editions.
+- **Any 64-bit processor.** Intel and AMD use `Pearl.exe`. Snapdragon and other Windows on ARM PCs get a native `Pearl-arm64.exe`.
+- **Any graphics.** Intel, AMD, NVIDIA and Qualcomm graphics all work through Direct3D 11. Without a usable GPU driver, as in virtual machines, Remote Desktop sessions or very old DirectX 10 cards, Pearl draws in software instead.
+- **Spotify Premium.** Spotify only allows playback control through its Web API for Premium accounts.
+
+Windows 11 adds rounded corners, and 22H2 or later adds the translucent acrylic backdrop. Windows 10 gets a solid background. Windows in S mode only runs apps from the Microsoft Store, so it has to be switched out of S mode first.
 
 ### Install
 
-Download `Pearl.exe` from [Releases](https://github.com/nn-nymph/pearl/releases/latest) and run it. Nothing gets installed. Settings and caches live in `%APPDATA%\Pearl`, so uninstalling means deleting the exe and that folder.
+Download `Pearl.exe` from [Releases](https://github.com/nn-nymph/pearl/releases/latest) (or `Pearl-arm64.exe` on an ARM PC) and run it. Nothing gets installed and there's no runtime to set up. Settings and caches live in `%APPDATA%\Pearl`, so uninstalling means deleting the exe and that folder.
 
 The exe isn't code-signed, so SmartScreen may ask you to confirm the first time you run it.
+
+### If something looks wrong
+
+- **Glitches, flicker or a blank window.** Some older or buggy graphics drivers draw incorrectly. Start Pearl with `--software`, for example by adding it to the end of a shortcut's **Target**, and it renders on the CPU instead.
+- **Small screens.** The window never asks for more room than the screen has, so Pearl fits on 1366×768 laptops even at 125% scaling.
 
 ### Connect Spotify
 
@@ -126,17 +135,18 @@ That's the whole list. There are no analytics, no telemetry and no update checks
 
 ## Building from source
 
-You need Visual Studio 2022 with the **Desktop development with C++** workload and the **C++ Clang tools for Windows** component (the project builds with the ClangCL toolset), plus a Windows 10 or 11 SDK for `fxc.exe`.
+You need Visual Studio 2022 (any edition, or the standalone Build Tools) with the **Desktop development with C++** workload and the **C++ Clang tools for Windows** component, since the project builds with the ClangCL toolset. You also need a Windows 10 or 11 SDK, which provides `fxc.exe` for the shaders.
 
 ```powershell
 git clone https://github.com/nn-nymph/pearl.git
 cd pearl
-.\tools\build.ps1                         # build\release\Pearl.exe
-.\tools\build.ps1 -configuration Debug    # build\debug\Pearl.exe
+.\tools\build.ps1                                     # build\release\Pearl.exe
+.\tools\build.ps1 -configuration Debug                # build\debug\Pearl.exe
+.\tools\build.ps1 -platform ARM64                     # build\release-arm64\Pearl.exe
 .\tools\build.ps1 -rebuild
 ```
 
-`build.ps1` expects Visual Studio 2022 Community in its default location. With another edition, open `pearl.sln` and build `Release | x64`. Shaders are compiled in a pre-build step (`tools\shaders.ps1`) and embedded in the exe as resources.
+`build.ps1` finds Visual Studio through `vswhere`, so the edition and install location don't matter. MSBuild only offers the ARM64 target once the **MSVC ARM64/ARM64EC build tools** component is installed, even though Pearl links nothing from it. Shaders are compiled in a pre-build step (`tools\shaders.ps1`) and embedded in the exe as resources.
 
 Before sending a pull request, run `.\tools\style.ps1`. It checks the house style: tabs, spaces inside parentheses and template brackets, LF line endings, and no comments.
 
@@ -148,9 +158,11 @@ The UI is immediate-mode. Each frame the app walks its state and records draw li
 
 Animation is spring-based throughout. The renderer only draws while something is moving and schedules frames against the display's vblank. When nothing is happening it falls back to a slow background drift, and when the window is hidden it stops drawing entirely.
 
+One exe covers every Windows 10 and 11 build because everything it imports already exists in the first Windows 10 release. Newer APIs like per-monitor DPI v2 are looked up at runtime and fall back gracefully when they're missing. Media Foundation is loaded on demand, so the N editions start fine without it. The code is compiled for baseline x64 with no AVX, and the few rounding functions the compiler needs live in `src/runtime`. The renderer asks for a Direct3D 11 GPU and falls back to WARP, Windows' software rasterizer, if any part of the hardware path fails. While running, it watches for a lost device and rebuilds itself when the driver comes back.
+
 | Path | What's there |
 | --- | --- |
-| `src/runtime` | Entry point and allocator (no CRT) |
+| `src/runtime` | Entry point, allocator and the handful of C functions the compiler expects (no CRT) |
 | `src/base` | Containers, text, math, JSON, file I/O |
 | `src/render` | D3D11 device, draw lists, text layout |
 | `src/shaders` | UI and glass shader, blur passes, procedural covers for the demo library |
@@ -170,13 +182,13 @@ Debug builds include a scripted renderer that runs without a window. Every image
 .\build\debug\Pearl.exe --capture shot --size 1240x800 --scale 2 --script "page albums; wait 1; shot albums"
 ```
 
-That writes `shot_albums.png`. Scripts can click, drag, scroll, type and navigate, and `bench 600` writes the average frame time over 600 frames. Without `--folder <path>`, the harness loads a built-in demo library of procedurally painted albums with synthesized songs.
+That writes `shot_albums.png`. Scripts can click, drag, scroll, type and navigate, `bench 600` writes the average frame time over 600 frames, and `rebuild` throws away the renderer and builds a new one the way a driver reset would. Add `--software` to render through WARP. Without `--folder <path>`, the harness loads a built-in demo library of procedurally painted albums with synthesized songs.
 
 ## Status
 
 - **Local files.** The folder scanner, tag reader, Media Foundation decoding and WASAPI output are all in the tree, but there's no folder picker in the UI yet. Debug builds accept `--folder <path>`.
 - **Likes and playlists** live in Pearl and don't sync to your Spotify library.
-- **Windows x64 only.**
+- **Windows only.** Pearl targets Windows 10 and 11 on x64 and ARM64. There are no macOS or Linux builds.
 
 ## Acknowledgements
 

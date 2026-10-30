@@ -246,6 +246,8 @@ namespace ui {
 
 		bool setup ( render::gpu* device, bool live_audio );
 
+		void rebuild_gpu ( render::gpu* device );
+
 		void shutdown ( );
 
 		void resize ( int32_t width_px, int32_t height_px, float dpi_scale );

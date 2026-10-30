@@ -22,6 +22,19 @@ static const wchar_t* argument ( const wchar_t* name ) {
 
 }
 
+static bool flag ( const wchar_t* name ) {
+
+	for ( int32_t i = 1; i < argument_count; i++ ) {
+
+		if ( base::same_text ( arguments [ i ], name ) )
+			return true;
+
+	}
+
+	return false;
+
+}
+
 static float parse_float ( const wchar_t* text ) {
 
 	float value = 0.0f;
@@ -194,9 +207,9 @@ static bool capture_mode ( ) {
 
 	}
 
-	render::gpu gpu;
+	render::gpu* gpu = new render::gpu ( );
 
-	if ( !gpu.setup ( ) )
+	if ( !gpu->setup ( flag ( L"--software" ) ) )
 		return true;
 
 	ui::app* app = new ui::app ( );
@@ -213,7 +226,7 @@ static bool capture_mode ( ) {
 
 	}
 
-	if ( !app->setup ( &gpu, false ) )
+	if ( !app->setup ( gpu, false ) )
 		return true;
 
 	app->resize ( static_cast < int32_t > ( width * scale ), static_cast < int32_t > ( height * scale ), scale );
@@ -319,7 +332,7 @@ static bool capture_mode ( ) {
 
 				double drawn = base::seconds ( );
 
-				gpu.finish ( );
+				gpu->finish ( );
 				line.fixed ( ( drawn - started ) * 1000.0, 2 ).add ( L"/" ).fixed ( ( base::seconds ( ) - started ) * 1000.0, 2 ).add ( L" " );
 
 			}
@@ -379,6 +392,26 @@ static bool capture_mode ( ) {
 				step ( 1 );
 
 			}
+
+		} else if ( base::same_text ( command, L"rebuild" ) ) {
+
+			render::gpu* fresh = new render::gpu ( );
+
+			if ( fresh->setup ( flag ( L"--software" ) ) ) {
+
+				app->rebuild_gpu ( fresh );
+				gpu->shutdown ( );
+				delete gpu;
+				gpu = fresh;
+
+			} else {
+
+				fresh->shutdown ( );
+				delete fresh;
+
+			}
+
+			step ( 1 );
 
 		} else if ( base::same_text ( command, L"frames" ) )
 			step ( static_cast < int32_t > ( reader.number ( ) ) );
@@ -445,7 +478,7 @@ static bool capture_mode ( ) {
 
 			reader.word ( name, 64 );
 			output_path ( path, prefix, name );
-			gpu.save ( gpu.chrome, path, theme::underlay, app->width, app->height );
+			gpu->save ( gpu->chrome, path, theme::underlay, app->width, app->height );
 			app->mouse_button ( 0, false );
 			step ( 1 );
 
@@ -465,7 +498,7 @@ static bool capture_mode ( ) {
 			for ( int32_t i = 0; i < frames; i++ ) {
 
 				step ( 1 );
-				gpu.finish ( );
+				gpu->finish ( );
 
 			}
 
@@ -506,13 +539,13 @@ static bool capture_mode ( ) {
 			render::canvas canvas;
 			float side = static_cast < float > ( size );
 
-			gpu.make_surface ( target, size, size, false );
-			canvas.begin ( &gpu, 1.0f, math::vec2 ( 0.0f, 0.0f ), 0.0f );
+			gpu->make_surface ( target, size, size, false );
+			canvas.begin ( gpu, 1.0f, math::vec2 ( 0.0f, 0.0f ), 0.0f );
 			app->draw_brand ( canvas, math::vec2 ( side * 0.5f, side * 0.47f ), side * 0.4f );
-			gpu.draw ( canvas, target, nullptr, true, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ) );
+			gpu->draw ( canvas, target, nullptr, true, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ) );
 			output_path ( path, prefix, name );
-			gpu.save ( target, path, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ), size, size );
-			gpu.free_surface ( target );
+			gpu->save ( target, path, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ), size, size );
+			gpu->free_surface ( target );
 
 		} else if ( base::same_text ( command, L"mini" ) ) {
 
@@ -527,7 +560,7 @@ static bool capture_mode ( ) {
 			int32_t mini_h = static_cast < int32_t > ( ( 60.0f + 48.0f ) * scale );
 			render::surface target;
 
-			gpu.make_surface ( target, mini_w, mini_h, true );
+			gpu->make_surface ( target, mini_w, mini_h, true );
 			app->mini_dpi = scale;
 			app->open_mini ( true );
 
@@ -544,8 +577,8 @@ static bool capture_mode ( ) {
 			}
 
 			output_path ( path, prefix, name );
-			gpu.save ( target, path, render::rgb ( 0x2B2D31 ), mini_w, mini_h );
-			gpu.free_surface ( target );
+			gpu->save ( target, path, render::rgb ( 0x2B2D31 ), mini_w, mini_h );
+			gpu->free_surface ( target );
 
 		} else if ( base::same_text ( command, L"snapcheck" ) ) {
 
@@ -569,11 +602,11 @@ static bool capture_mode ( ) {
 					math::vec2 pivot ( 78.0f, 236.37f );
 					math::vec2 at ( 92.0f, 236.37f );
 
-					probe.begin ( &gpu, dpi_scale, math::vec2 ( 0.0f, 0.0f ), 0.0f );
+					probe.begin ( gpu, dpi_scale, math::vec2 ( 0.0f, 0.0f ), 0.0f );
 					probe.push ( pivot, 0.9f + 0.1f * e, 1.0f, math::vec2 ( -8.0f * ( 1.0f - e ), 0.0f ) );
 					probe.text ( L"playlist #1", render::font::BODY_STRONG, at, theme::ink );
 
-					render::text_entry* entry = gpu.layout ( L"playlist #1", render::font::BODY_STRONG, 0.0f );
+					render::text_entry* entry = gpu->layout ( L"playlist #1", render::font::BODY_STRONG, 0.0f );
 					math::vec2 exact = probe.screen ( math::vec2 ( at.x, at.y - ( entry->baseline - entry->cap * 0.5f ) ) );
 					float dx = probe.texts [ 0 ].x - exact.x;
 					float dy = probe.texts [ 0 ].y - exact.y;
@@ -809,7 +842,7 @@ static bool capture_mode ( ) {
 
 			reader.word ( name, 64 );
 			output_path ( path, prefix, name );
-			gpu.save ( gpu.chrome, path, theme::underlay, app->width, app->height );
+			gpu->save ( gpu->chrome, path, theme::underlay, app->width, app->height );
 
 		} else if ( base::same_text ( command, L"overlay" ) ) {
 
@@ -824,13 +857,13 @@ static bool capture_mode ( ) {
 			render::surface target;
 			render::canvas canvas;
 
-			gpu.make_surface ( target, app->width + static_cast < int32_t > ( margin * 2.0f ), app->height + static_cast < int32_t > ( margin * 2.0f ), false );
-			canvas.begin ( &gpu, 1.0f, math::vec2 ( 0.0f, 0.0f ), 0.0f );
+			gpu->make_surface ( target, app->width + static_cast < int32_t > ( margin * 2.0f ), app->height + static_cast < int32_t > ( margin * 2.0f ), false );
+			canvas.begin ( gpu, 1.0f, math::vec2 ( 0.0f, 0.0f ), 0.0f );
 			app->draw_snapshot ( canvas, margin, overlay_scale, overlay_alpha, false );
-			gpu.draw ( canvas, target, &gpu.chrome, true, render::rgb ( 0x5B6B82 ) );
+			gpu->draw ( canvas, target, &gpu->chrome, true, render::rgb ( 0x5B6B82 ) );
 			output_path ( path, prefix, name );
-			gpu.save ( target, path, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ), target.width, target.height );
-			gpu.free_surface ( target );
+			gpu->save ( target, path, render::color ( 0.0f, 0.0f, 0.0f, 0.0f ), target.width, target.height );
+			gpu->free_surface ( target );
 
 		}
 

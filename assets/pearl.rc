@@ -2,6 +2,8 @@
 
 1 ICON "pearl.ico"
 
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "pearl.manifest"
+
 101 RCDATA "shaders\\ui_vs.cso"
 102 RCDATA "shaders\\ui_ps.cso"
 103 RCDATA "shaders\\full_vs.cso"

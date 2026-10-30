@@ -221,7 +221,9 @@ namespace render {
 
 	public:
 
-		bool setup ( );
+		bool setup ( bool force_software = false );
+
+		bool healthy ( ) const;
 
 		void shutdown ( );
 
@@ -271,8 +273,11 @@ namespace render {
 		surface blurred;
 		int32_t width = 0;
 		int32_t height = 0;
+		bool software = false;
 
 	private:
+
+		bool create ( bool use_software );
 
 		bool make_shaders ( );
 

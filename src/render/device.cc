@@ -61,15 +61,35 @@ namespace render {
 
 	}
 
-	bool gpu::setup ( ) {
+	bool gpu::setup ( bool force_software ) {
 
-		D3D_FEATURE_LEVEL levels [ ] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
-		HRESULT result = D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 4, D3D11_SDK_VERSION, &device, nullptr, &context );
+		if ( !force_software && create ( false ) )
+			return true;
 
-		if ( FAILED ( result ) )
-			result = D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_WARP, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 4, D3D11_SDK_VERSION, &device, nullptr, &context );
+		shutdown ( );
 
-		if ( FAILED ( result ) )
+		return create ( true );
+
+	}
+
+	bool gpu::healthy ( ) const {
+
+		if ( !device || device->GetDeviceRemovedReason ( ) != S_OK )
+			return false;
+
+		BOOL valid = TRUE;
+
+		return !composition || ( SUCCEEDED ( composition->CheckDeviceState ( &valid ) ) && valid );
+
+	}
+
+	bool gpu::create ( bool use_software ) {
+
+		D3D_FEATURE_LEVEL levels [ ] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
+
+		software = use_software;
+
+		if ( FAILED ( D3D11CreateDevice ( nullptr, software ? D3D_DRIVER_TYPE_WARP : D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 2, D3D11_SDK_VERSION, &device, nullptr, &context ) ) )
 			return false;
 
 		IDXGIDevice* dxgi = nullptr;
@@ -394,19 +414,62 @@ namespace render {
 		for ( int32_t i = 0; i < entry_room && entries; i++ )
 			drop ( entries [ i ].layout );
 
+		delete [ ] entries;
+		entries = nullptr;
+		entry_count = 0;
+		glyph_count = 0;
+
 		for ( int32_t i = 0; i < 4; i++ )
 			free_surface ( down [ i ] );
 
 		for ( int32_t i = 0; i < 3; i++ )
 			free_surface ( up [ i ] );
 
+		blurred = surface ( );
 		free_surface ( scene );
 		free_surface ( chrome );
+
+		for ( int32_t i = 0; i < static_cast < int32_t > ( font::COUNT ); i++ ) {
+
+			drop ( ellipsis [ i ] );
+			drop ( formats [ i ] );
+
+		}
+
+		drop ( tabular );
+		drop ( icon_face );
+		drop ( icon_params );
+		drop ( text_params );
+		drop ( dwrite );
+		drop ( thumb_view );
+		drop ( thumbs );
 		drop ( cover_view );
 		drop ( covers );
 		drop ( instances );
+		instance_room = 0;
+		drop ( frame_constants );
+		drop ( post_constants );
+		drop ( sampler );
+		drop ( raster );
+		drop ( opaque );
+		drop ( blend );
+		drop ( cover_ps );
+		drop ( up_ps );
+		drop ( down_ps );
+		drop ( full_vs );
+		drop ( ui_layout );
+		drop ( ui_ps );
+		drop ( ui_vs );
+		drop ( brush );
 		drop ( d2d_context );
 		drop ( d2d_device );
+		drop ( d2d );
+		drop ( composition );
+		drop ( factory );
+
+		if ( context )
+			context->ClearState ( );
+
 		drop ( context );
 		drop ( device );
 

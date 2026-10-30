@@ -1,0 +1,33 @@
+#include <windows.h>
+
+1 ICON "pearl.ico"
+
+101 RCDATA "shaders\\ui_vs.cso"
+102 RCDATA "shaders\\ui_ps.cso"
+103 RCDATA "shaders\\full_vs.cso"
+104 RCDATA "shaders\\down_ps.cso"
+105 RCDATA "shaders\\up_ps.cso"
+106 RCDATA "shaders\\cover_ps.cso"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904B0"
+		BEGIN
+			VALUE "FileDescription", "Pearl"
+			VALUE "FileVersion", "1.0.0.0"
+			VALUE "ProductName", "Pearl"
+			VALUE "ProductVersion", "1.0.0.0"
+			VALUE "OriginalFilename", "Pearl.exe"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1200
+	END
+END

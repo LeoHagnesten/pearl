@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{5A1C9E37-2B84-4F6D-9E1A-7C3B5D8F0A42}</ProjectGuid>
+    <RootNamespace>pearl</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>ClangCL</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="props\pearl.props" />
+  </ImportGroup>
+  <PropertyGroup>
+    <TargetName>Pearl</TargetName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ClCompile Include="src\runtime\startup.cc" />
+    <ClCompile Include="src\runtime\memory.cc" />
+    <ClCompile Include="src\base\base.cc" />
+    <ClCompile Include="src\base\math.cc" />
+    <ClCompile Include="src\base\files.cc" />
+    <ClCompile Include="src\base\json.cc" />
+    <ClCompile Include="src\audio\synth.cc" />
+    <ClCompile Include="src\audio\engine.cc" />
+    <ClCompile Include="src\audio\decoder.cc" />
+    <ClCompile Include="src\library\library.cc" />
+    <ClCompile Include="src\library\scan.cc" />
+    <ClCompile Include="src\render\device.cc" />
+    <ClCompile Include="src\render\canvas.cc" />
+    <ClCompile Include="src\ui\app.cc" />
+    <ClCompile Include="src\ui\widgets.cc" />
+    <ClCompile Include="src\ui\chrome.cc" />
+    <ClCompile Include="src\ui\views.cc" />
+    <ClCompile Include="src\ui\now.cc" />
+    <ClCompile Include="src\ui\actions.cc" />
+    <ClCompile Include="src\ui\field.cc" />
+    <ClCompile Include="src\ui\rail.cc" />
+    <ClCompile Include="src\net\http.cc" />
+    <ClCompile Include="src\spotify\spotify.cc" />
+    <ClCompile Include="src\spotify\taste.cc" />
+    <ClCompile Include="src\lyrics\lyrics.cc" />
+    <ClCompile Include="src\ui\home.cc" />
+    <ClCompile Include="src\debug.cc" />
+    <ClCompile Include="src\main.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\runtime\runtime.hh" />
+    <ClInclude Include="src\base\base.hh" />
+    <ClInclude Include="src\base\math.hh" />
+    <ClInclude Include="src\base\files.hh" />
+    <ClInclude Include="src\base\json.hh" />
+    <ClInclude Include="src\audio\decoder.hh" />
+    <ClInclude Include="src\library\catalog.hh" />
+    <ClInclude Include="src\audio\synth.hh" />
+    <ClInclude Include="src\audio\engine.hh" />
+    <ClInclude Include="src\library\library.hh" />
+    <ClInclude Include="src\render\render.hh" />
+    <ClInclude Include="src\ui\app.hh" />
+    <ClInclude Include="src\ui\theme.hh" />
+    <ClInclude Include="src\net\http.hh" />
+    <ClInclude Include="src\spotify\spotify.hh" />
+    <ClInclude Include="src\spotify\web.hh" />
+    <ClInclude Include="src\lyrics\lyrics.hh" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\shaders\ui.hlsl" />
+    <None Include="src\shaders\post.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="assets\pearl.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

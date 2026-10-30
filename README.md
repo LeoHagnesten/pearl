@@ -31,6 +31,11 @@ Pearl controls Spotify through Spotify Connect, so the audio still comes from th
 <p align="center"><sub>Press play on Your Mix. The player swaps tracks and the background takes its color from the cover.</sub></p>
 
 <p align="center">
+  <img src="docs/media/demo-lyrics.webp" width="100%" alt="Clicking the spinning record in the player bar opens Now Playing: the cover flies into place and synced lyrics scroll line by line, with the current line in focus and the rest fading toward the edges">
+</p>
+<p align="center"><sub>Click the spinning record in the player bar to open Now Playing. Synced lyrics follow the song line by line, and you can click any line to jump to it.</sub></p>
+
+<p align="center">
   <img src="docs/media/demo-dock.webp" width="100%" alt="Dragging the player bar to the top-right corner, where it shrinks and snaps into place, then flinging it back to the bottom">
 </p>
 <p align="center"><sub>Drag the player bar and let go. It springs to the nearest of five spots and shrinks to a compact pill away from the bottom edge.</sub></p>
@@ -182,7 +187,7 @@ Debug builds include a scripted renderer that runs without a window. Every image
 .\build\debug\Pearl.exe --capture shot --size 1240x800 --scale 2 --script "page albums; wait 1; shot albums"
 ```
 
-That writes `shot_albums.png`. Scripts can click, drag, scroll, type and navigate, `bench 600` writes the average frame time over 600 frames, and `rebuild` throws away the renderer and builds a new one the way a driver reset would. Add `--software` to render through WARP. Without `--folder <path>`, the harness loads a built-in demo library of procedurally painted albums with synthesized songs.
+That writes `shot_albums.png`. Scripts can click, drag, scroll, type and navigate, `bench 600` writes the average frame time over 600 frames, `rebuild` throws away the renderer and builds a new one the way a driver reset would, and `lyrics <track> <file.lrc>` hands synced lyrics to a demo track. That's where the words in the Now Playing clip come from, since the demo songs are made up. Add `--software` to render through WARP. Without `--folder <path>`, the harness loads a built-in demo library of procedurally painted albums with synthesized songs.
 
 ## Status
 

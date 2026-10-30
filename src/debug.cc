@@ -393,6 +393,28 @@ static bool capture_mode ( ) {
 
 			}
 
+		} else if ( base::same_text ( command, L"lyrics" ) ) {
+
+			int32_t index = static_cast < int32_t > ( reader.number ( ) );
+			wchar_t file [ 600 ];
+			base::list < char > bytes;
+
+			reader.word ( file, 600 );
+
+			if ( index >= 0 && index < library::track_count ( ) && files::read ( file, bytes ) ) {
+
+				int32_t length = MultiByteToWideChar ( CP_UTF8, 0, bytes.data ( ), -1, nullptr, 0 );
+				base::list < wchar_t > text;
+
+				text.resize ( static_cast < size_t > ( base::max ( length, 1 ) ) );
+				text [ 0 ] = 0;
+				MultiByteToWideChar ( CP_UTF8, 0, bytes.data ( ), -1, text.data ( ), length );
+				lyrics::provide ( library::track_at ( index ).key, text.data ( ) );
+
+			}
+
+			step ( 1 );
+
 		} else if ( base::same_text ( command, L"rebuild" ) ) {
 
 			render::gpu* fresh = new render::gpu ( );

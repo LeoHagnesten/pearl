@@ -29,4 +29,10 @@ namespace lyrics {
 
 	void read ( sheet& out );
 
+#ifdef PEARL_DEBUG
+
+	void provide ( uint64_t key, const wchar_t* text );
+
+#endif
+
 }

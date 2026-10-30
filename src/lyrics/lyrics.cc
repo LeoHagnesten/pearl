@@ -433,4 +433,38 @@ namespace lyrics {
 
 	}
 
+#ifdef PEARL_DEBUG
+
+	void provide ( uint64_t key, const wchar_t* text ) {
+
+		sheet entry;
+
+		entry.key = key;
+		parse_synced ( text, entry.lines );
+		entry.found = !entry.lines.empty ( );
+		entry.synced = entry.found;
+		AcquireSRWLockExclusive ( &lock );
+
+		for ( int32_t i = cache.count ( ) - 1; i >= 0; i-- ) {
+
+			if ( cache [ static_cast < size_t > ( i ) ].key == key )
+				cache.remove_at ( static_cast < size_t > ( i ) );
+
+		}
+
+		cache.push ( entry );
+
+		if ( current.key == key ) {
+
+			current = entry;
+			current.revision = ++counter;
+
+		}
+
+		ReleaseSRWLockExclusive ( &lock );
+
+	}
+
+#endif
+
 }
